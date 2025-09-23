@@ -1,0 +1,245 @@
+--SQL Chapter 3 Assignment – Multi-Table Queries
+
+
+
+--1. Show all possible combinations of customers and employees.
+
+USE WideWorldImporters;
+SELECT TOP 5 C.CustomerID, P.PersonID AS EmployeeID
+FROM Sales.Customers AS C
+CROSS JOIN Application.People AS P;  -- Cartesian product of customers and people
+-- This query demonstrates a CROSS JOIN (all combinations).
+
+--Output
+--|CustomerID|EmployeeID|
+--|----------|----------|
+--|841|1|
+--|841|4|
+--|841|5|
+--|841|9|
+--|841|10|
+
+
+--2. List orders along with their customer names.
+
+USE WideWorldImporters;
+SELECT TOP 6 I.InvoiceID, C.CustomerName
+FROM Sales.Invoices AS I
+INNER JOIN Sales.Customers AS C
+  ON I.CustomerID = C.CustomerID; -- Matching orders to customers
+-- Shows how INNER JOIN works; unmatched orders/customers are excluded.
+
+--Output 
+--|InvoiceID|CustomerName|
+--|---------|------------|
+--|2874|Tailspin Toys (Head Office)|
+--|3414|Tailspin Toys (Head Office)|
+--|3579|Tailspin Toys (Head Office)|
+--|3971|Tailspin Toys (Head Office)|
+--|4113|Tailspin Toys (Head Office)|
+--|4195|Tailspin Toys (Head Office)|
+
+  
+--3. Find employees hired before each customer was created.
+
+SELECT TOP 7 C.CustomerName, P.FullName AS EmployeeName
+FROM Sales.Customers AS C
+INNER JOIN Application.People AS P
+  ON P.IsEmployee = 1 -- Only consider employees
+ AND P.ValidFrom > C.AccountOpenedDate;
+-- Demonstrates conditional join to relate employees and customers based on dates.
+
+--Output 
+--|CustomerName|EmployeeName|
+--|------------|------------|
+--|Camille Authier|Kayla Woodcock|
+--|Camille Authier|Hudson Onslow|
+--|Camille Authier|Isabella Rupp|
+--|Camille Authier|Eva Muirden|
+--|Camille Authier|Sophia Hinton|
+--|Camille Authier|Amy Trefl|
+--|Camille Authier|Anthony Grosse|
+
+
+--4. Show all customers and any orders they placed.
+
+USE WideWorldImporters;
+
+SELECT TOP 6 C.CustomerName, I.InvoiceID
+FROM Sales.Customers AS C
+LEFT OUTER JOIN Sales.Invoices AS I
+  ON C.CustomerID = I.CustomerID;
+-- LEFT JOIN ensures customers without invoices are still included (InvoiceID will be NULL).
+
+
+--Output
+--|CustomerName|InvoiceID|
+--|------------|---------|
+--|Tailspin Toys (Head Office)|2874|
+--|Tailspin Toys (Head Office)|3414|
+--|Tailspin Toys (Head Office)|3579|
+--|Tailspin Toys (Head Office)|3971|
+--|Tailspin Toys (Head Office)|4113|
+--|Tailspin Toys (Head Office)|4195|
+
+
+
+--5. Show all orders and their customers, including unmatched orders.
+
+USE WideWorldImporters;
+
+SELECT I.InvoiceID AS OrderID, C.CustomerName
+FROM Sales.Customers AS C
+RIGHT OUTER JOIN Sales.Invoices AS I
+    ON I.CustomerID = C.CustomerID
+WHERE I.InvoiceID IN (1, 272, 404, 706, 860);
+-- Demonstrates RIGHT JOIN: all selected orders appear even if customer info is missing.
+
+--Output
+--|OrderID|CustomerName|
+--|-------|------------|
+--|1|Aakriti Byrraju|
+--|272|Risto Valbe|
+--|404|Bing Han|
+--|706|Tailspin Toys (Donner, LA)|
+--|860|Tailspin Toys (Lytle Creek, CA)|
+
+
+--6. Show all customers and all orders, whether matched or not.
+
+SELECT C.CustomerName, I.InvoiceID AS OrderID
+FROM Sales.Customers AS C
+FULL OUTER JOIN Sales.Invoices AS I
+  ON C.CustomerID = I.CustomerID
+WHERE I.InvoiceID IN (47901, 5785, 26062, 6000);
+-- FULL OUTER JOIN ensures unmatched rows from either table are included.
+
+--Output
+--|CustomerName|OrderID|
+--|------------|-------|
+--|Tailspin Toys (Arietta, NY)|5785|
+--|Tailspin Toys (New Baden, IL)|6000|
+--|Wingtip Toys (Licking, MO)|26062|
+--|Tailspin Toys (New Baden, IL)|47901|
+
+
+--7. Show orders with customer and salesperson names.
+  
+USE WideWorldImporters;
+SELECT TOP 7 I.InvoiceID AS OrderID, 
+		C.CustomerName, 
+		P.FullName AS Salesperson
+FROM Sales.Invoices AS I
+INNER JOIN Sales.Customers AS C
+  ON I.CustomerID = C.CustomerID
+INNER JOIN Application.People AS P
+  ON I.SalespersonPersonID = P.PersonID;
+-- Demonstrates multi-table INNER JOIN and aliasing columns for clarity.
+
+--Output
+--|OrderID|CustomerName|Salesperson|
+--|-------|------------|-----------|
+--|2874|Tailspin Toys (Head Office)|Archer Lamble|
+--|3414|Tailspin Toys (Head Office)|Hudson Hollinworth|
+--|3579|Tailspin Toys (Head Office)|Taj Shand|
+--|3971|Tailspin Toys (Head Office)|Jack Potter|
+--|4113|Tailspin Toys (Head Office)|Jack Potter|
+--|4195|Tailspin Toys (Head Office)|Lily Code|
+--|4477|Tailspin Toys (Head Office)|Archer Lamble|
+  
+
+--8. Show top 5 customers by total order value.
+
+SELECT TOP 5 C.CustomerName, SUM(OL.Quantity * OL.UnitPrice) AS TotalOrderValue
+FROM Sales.Customers AS C
+INNER JOIN Sales.Orders AS O
+  ON C.CustomerID = O.CustomerID
+INNER JOIN Sales.OrderLines AS OL
+  ON O.OrderID = OL.OrderID
+GROUP BY C.CustomerName
+ORDER BY TotalOrderValue DESC;
+-- Aggregates total value of orders per customer and returns the top 5.
+
+--Output
+--|CustomerName|TotalOrderValue|
+--|------------|---------------|
+--|Tailspin Toys (Inguadona, MN)|384393.35|
+--|Tailspin Toys (Minidoka, ID)|379660.70|
+--|Mauno Laurila|377189.80|
+--|Wingtip Toys (Sarversville, PA)|372350.00|
+--|Ingrida Zeltina|368067.45|
+
+
+--9. Find stock items with the same price as another item.
+
+USE WideWorldImporters;
+SELECT TOP 7 A.StockItemID AS Item1ID,
+       A.StockItemName AS Item1Name,
+       B.StockItemID AS Item2ID,
+       B.StockItemName AS Item2Name,
+       A.RecommendedRetailPrice AS Price
+FROM Warehouse.StockItems AS A
+INNER JOIN Warehouse.StockItems AS B
+  ON A.RecommendedRetailPrice = B.RecommendedRetailPrice
+ AND A.StockItemID < B.StockItemID -- avoids duplicates and self-pairing
+ORDER BY A.RecommendedRetailPrice, A.StockItemID;
+-- Demonstrates self-join and comparing values within the same table.
+
+
+--Output
+--|Item1ID|Item1Name|Item2ID|Item2Name|Price|
+--|-------|---------|-------|---------|-----|
+--|177|Shipping carton (Brown) 413x285x187mm|179|Shipping carton (Brown) 229x229x229mm|1.57|
+--|206|Permanent marker black 5mm nib (Black) 5mm|207|Permanent marker blue 5mm nib (Blue) 5mm|4.04|
+--|206|Permanent marker black 5mm nib (Black) 5mm|208|Permanent marker red 5mm nib (Red) 5mm|4.04|
+--|207|Permanent marker blue 5mm nib (Blue) 5mm|208|Permanent marker red 5mm nib (Red) 5mm|4.04|
+--|184|Shipping carton (Brown) 305x305x305mm|190|Clear packaging tape 48mmx100m|5.23|
+--|191|Black and orange fragile despatch tape 48mmx75m|193|Black and orange glass with care despatch tape 48mmx75m|5.53|
+--|191|Black and orange fragile despatch tape 48mmx75m|195|Black and orange handle with care despatch tape  48mmx75m|5.53|
+
+
+--10. Display order lines, orders, customers, and the stock items purchased.
+
+SELECT TOP 10 OL.OrderLineID,
+       O.OrderID,
+       C.CustomerName,
+       SI.StockItemName,
+       OL.Quantity,
+       OL.UnitPrice
+FROM Sales.OrderLines AS OL
+INNER JOIN Sales.Orders AS O
+  ON OL.OrderID = O.OrderID
+INNER JOIN Sales.Customers AS C
+  ON O.CustomerID = C.CustomerID
+INNER JOIN Warehouse.StockItems AS SI
+  ON OL.StockItemID = SI.StockItemID
+ORDER BY O.OrderID, OL.OrderLineID;
+-- Demonstrates joining multiple tables to produce a comprehensive report.
+
+--Output
+--|OrderLineID|OrderID|CustomerName|StockItemName|Quantity|UnitPrice|
+--|-----------|-------|------------|-------------|--------|---------|
+--|2|1|Aakriti Byrraju|Ride on toy sedan car (Black) 1/12 scale|10|230.00|
+--|3|2|Bala Dixit|Developer joke mug - old C developers never die (White)|9|13.00|
+--|6|2|Bala Dixit|USB food flash drive - chocolate bar|9|32.00|
+--|9|3|Tailspin Toys (Tomnolen, MS)|Superhero action jacket (Blue) XXL|3|30.00|
+--|11|4|Tailspin Toys (Lakemore, OH)|Permanent marker black 5mm nib (Black) 5mm|96|2.70|
+--|12|4|Tailspin Toys (Lakemore, OH)|Furry gorilla with big eyes slippers (Black) S|5|32.00|
+--|13|4|Tailspin Toys (Lakemore, OH)|Developer joke mug - old C developers never die (White)|2|13.00|
+--|14|5|Sara Huiting|Plush shark slippers (Gray) L|4|32.00|
+--|17|5|Sara Huiting|Dinosaur battery-powered slippers (Green) XL|3|32.00|
+--|18|5|Sara Huiting|Large sized bubblewrap roll 50m|20|24.00|
+
+
+
+-- Note: I took help from Chatgpt and Copilot to complete my assignment
+
+
+
+
+
+
+
+
+
+
